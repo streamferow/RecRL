@@ -42,7 +42,7 @@ training:
   max_grad_norm: 1.0
   warmup_ratio: 0.03
   mixed_precision: fp16
-  num_workers: 0
+  num_workers: 2
   drop_last: true
   log_every_steps: 1
   eval_every_steps: 1000
