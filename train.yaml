@@ -45,17 +45,17 @@ training:
   num_workers: 0
   drop_last: true
   log_every_steps: 25
-  eval_every_steps: 500
-  checkpoint_every_steps: 500
+  eval_every_steps: 1000
+  checkpoint_every_steps: 5000
   output_dir: /kaggle/working/RecRL/model/gpt2-next-item-500m-30m
   checkpoint_dir: /kaggle/working/RecRL/checkpoints-gpt2-500m-30m
   resume_from: auto
 
 evaluation:
   batch_size: 256
-  k_values: [5, 10, 20]
+  k_values: [5, 10, 15, 20]
   metrics_file: /kaggle/working/RecRL/eval/gpt2-500m-30m-metrics.jsonl
   training_loss_file: /kaggle/working/RecRL/eval/gpt2-500m-30m-training-loss.jsonl
   plots_dir: /kaggle/working/RecRL/eval/gpt2-500m-30m-plots
-  plot_k: 10
+  plot_k: 20
 
