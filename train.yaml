@@ -45,8 +45,8 @@ training:
   num_workers: 2
   drop_last: true
   log_every_steps: 1
-  eval_every_steps: 1000
-  checkpoint_every_steps: 5000
+  eval_every_steps: 500
+  checkpoint_every_steps: 2000
   output_dir: /kaggle/working/RecRL/model/gpt2-next-item-500m-30m
   checkpoint_dir: /kaggle/working/RecRL/checkpoints-gpt2-500m-30m
   resume_from: auto
