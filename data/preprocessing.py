@@ -268,6 +268,7 @@ def write_prepared_data(
             inputs, targets = window[:-1], window[1:]
             if len(inputs) <= 1:
                 continue
+            coverage["train_tokens"] += len(inputs)
             pad = context_length - len(inputs)
             input_memmap[row_index] = [pad_token_id] * pad + inputs
             label_memmap[row_index] = [-100] * pad + [-100 if token == unk_token_id else token for token in targets]

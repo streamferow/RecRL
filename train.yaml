@@ -34,27 +34,26 @@ training:
   gradient_accumulation_steps: 2
   effective_batch_size: 64
   epochs: 1
-  token_budget: null
   learning_rate: 0.0003
   betas: [0.9, 0.95]
-  weight_decay: 0.1
+  weight_decay: 0.01
   max_grad_norm: 1.0
   warmup_ratio: 0.02
   mixed_precision: fp16
   num_workers: 2
   drop_last: true
   log_every_steps: 100
-  eval_every_steps: 1500
-  checkpoint_every_steps: 2000
-  output_dir: /content/drive/MyDrive/RecRL/model/gpt2-next-item-500m-30m
-  checkpoint_dir: /content/drive/MyDrive/RecRL/model/checkpoints-gpt2-500m-30m
+  eval_every_steps: 1000
+  checkpoint_every_steps: 5000
+  output_dir: /kaggle/working/RecRL/model/gpt2-next-item-500m-30m
+  checkpoint_dir: /kaggle/working/RecRL/checkpoints-gpt2-500m-30m
   resume_from: auto
 
 evaluation:
   batch_size: 8
   k_values: [5, 10, 20]
-  metrics_file: /content/drive/MyDrive/RecRL/eval/gpt2-500m-30m-metrics.jsonl
-  training_loss_file: /content/drive/MyDrive/RecRL/eval/gpt2-500m-30m-training-loss.jsonl
-  plots_dir: /content/drive/MyDrive/RecRL/eval/gpt2-500m-30m-plots
+  metrics_file: /kaggle/working/RecRL/eval/gpt2-500m-30m-metrics.jsonl
+  training_loss_file: /kaggle/working/RecRL/eval/gpt2-500m-30m-training-loss.jsonl
+  plots_dir: /kaggle/working/RecRL/eval/gpt2-500m-30m-plots
   plot_k: 10
 
