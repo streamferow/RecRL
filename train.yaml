@@ -30,10 +30,10 @@ model:
   dropout: 0.1
 
 training:
-  # torchrun --nproc_per_node=2 main.py
-  # effective_batch_size = batch_size * gradient_accumulation_steps * 2
+  # python main.py
+  # Two T4s spend ~35s synchronizing gradients on every update.
   batch_size: 32
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 8
   effective_batch_size: 256
   epochs: 1
   learning_rate: 0.0006
@@ -44,7 +44,7 @@ training:
   mixed_precision: fp16
   num_workers: 2
   drop_last: true
-  log_every_steps: 1
+  log_every_steps: 10
   eval_every_steps: 1000
   checkpoint_every_steps: 5000
   output_dir: /kaggle/working/RecRL/model/gpt2-next-item-500m-30m
