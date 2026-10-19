@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Downloaded datasets
+/data/yambda-50m/
+/data/yambda-50m-sequential/
+
+# Downloaded model checkpoints
+/model/checkpoints/
+/model/sasrec-next-item/
+/model/checkpoints-sasrec/

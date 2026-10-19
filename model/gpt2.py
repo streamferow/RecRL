@@ -111,6 +111,10 @@ class GPT2NextItem(nn.Module):
         return hidden @ self.item_embedding.weight[: self.num_items].T
 
 
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        return self.logits(input_ids, attention_mask)
+
+
     def next_item_logits(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         hidden = self.encode(input_ids, attention_mask)
         return hidden[:, -1] @ self.item_embedding.weight[: self.num_items].T
@@ -242,12 +246,12 @@ def train_batch(
     model: GPT2NextItem,
     batch: dict[str, torch.Tensor],
     device: torch.device,
-    loss_normalizer: int,
+    loss_normalizer: float,
     scaler: torch.cuda.amp.GradScaler | None = None,
 ) -> tuple[float, int]:
     batch = {key: value.to(device) for key, value in batch.items()}
     with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=scaler is not None):
-        logits = model.logits(batch["input_ids"], batch["attention_mask"])
+        logits = model(batch["input_ids"], batch["attention_mask"])
         labels = batch["labels"].reshape(-1)
         loss_sum = F.cross_entropy(
             logits.reshape(-1, logits.shape[-1]),
