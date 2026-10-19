@@ -44,7 +44,7 @@ training:
   mixed_precision: fp16
   num_workers: 0
   drop_last: true
-  log_every_steps: 25
+  log_every_steps: 1
   eval_every_steps: 1000
   checkpoint_every_steps: 5000
   output_dir: /kaggle/working/RecRL/model/gpt2-next-item-500m-30m
