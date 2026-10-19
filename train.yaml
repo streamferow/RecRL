@@ -2,7 +2,7 @@ seed: 0
 
 data:
   source_path: /kaggle/working/RecRL/data/yambda-500m-flat/multi_event.parquet
-  prepared_dir: /kaggle/working/RecRL/data/yambda-500m-prepared-listens
+  prepared_dir: /kaggle/input/datasets/ivanpanferov/recrl-yambda-500m-prepared
 
   download:
     dataset_size: 500m
