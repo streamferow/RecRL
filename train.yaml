@@ -23,10 +23,10 @@ preprocessing:
 
 model:
   context_length: 128
-  hidden_size: 512
+  hidden_size: 1024
   layers: 8
-  heads: 8
-  feed_forward_size: 2048
+  heads: 16
+  feed_forward_size: 4096
   dropout: 0.1
 
 training:
