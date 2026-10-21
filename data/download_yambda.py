@@ -3,6 +3,7 @@ import argparse
 from typing import Any
 from pathlib import Path
 from datasets import load_dataset
+from huggingface_hub import hf_hub_download
 import yaml
 
 
@@ -38,10 +39,33 @@ def run_download(config: dict[str, Any]) -> None:
     print(f"Saved {len(dataset):,} rows to {output_path}")
 
 
+def download_rl_tables(output_dir: Path) -> None:
+    """Audio embeddings and the artist map are shared by every Yambda size.
+
+    They are downloaded here to build Kaggle datasets. The notebook only reads
+    the mounted copies and does not store these files in /kaggle/working.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ("embeddings.parquet", "artist_item_mapping.parquet"):
+        saved = hf_hub_download(
+            repo_id="yandex/yambda",
+            filename=filename,
+            repo_type="dataset",
+            local_dir=output_dir,
+        )
+        print(f"Saved {filename} to {saved}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=Path("train.yaml"))
+    root = Path(__file__).resolve().parents[1]
+    parser.add_argument("--config", type=Path, default=root / "pretrain" / "train.yaml")
+    parser.add_argument("--rl", action="store_true", help="download embeddings and artist mapping")
+    parser.add_argument("--output", type=Path, default=root / "data" / "yambda-catalog")
     args = parser.parse_args()
+    if args.rl:
+        download_rl_tables(args.output)
+        return
     with args.config.open() as file:
         config = yaml.safe_load(file)
     run_download(config["data"]["download"])

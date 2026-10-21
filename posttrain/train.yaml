@@ -1,0 +1,39 @@
+seed: 0
+
+data:
+  source_path: /kaggle/working/RecRL/data/yambda-500m-flat/multi_event.parquet
+  prepared_dir: /kaggle/input/datasets/ivanpanferov/recrl-yambda-500m-prepared
+
+preprocessing:
+  context_length: 128
+  min_sequence_length: 10
+  max_items: 100000
+  batch_size: 262144
+  train_fraction: 0.8
+  validation_fraction: 0.1
+  train_cutoff: null
+  validation_cutoff: null
+
+critic:
+  output_dir: /kaggle/working/RecRL/data/critic
+  train_keep_probability: 0.005
+  validation_keep_probability: 0.02
+  tail_token_start: 20000
+  tail_keep_multiplier: 5
+  negatives_per_listen: 1
+  seed: 0
+  embeddings_path: /kaggle/input/datasets/ivanpanferov/recrl-yambda-embeddings/embeddings.parquet
+  artist_mapping_path: /kaggle/input/datasets/ivanpanferov/recrl-yambda-artists/artist_item_mapping.parquet
+
+reward:
+  alpha: 1.0
+  beta: 1.0
+  lambda_novelty: 1.0
+  lambda_trend: 1.0
+  lambda_diversity: 0.1
+  lambda_repeat: 1.0
+
+policy:
+  init_from: /kaggle/working/RecRL/model/gpt2-1024
+  reference_from: /kaggle/working/RecRL/model/gpt2-1024
+  trainable_last_blocks: 2
