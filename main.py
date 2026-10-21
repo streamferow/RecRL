@@ -9,7 +9,7 @@ import torch
 import torch.distributed as dist
 import yaml
 from torch.nn.parallel import DistributedDataParallel
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sampler
 
 from eval.evaluate import append_metrics, evaluate
 from eval.plotting import (
@@ -34,6 +34,23 @@ from model.gpt2 import (
     save_model,
     train_batch,
 )
+
+
+class _SkipFirstBatches(Sampler[int]):
+    """Drop the first N batches of an existing sampler without reading them."""
+
+    def __init__(self, sampler: Sampler[int], skip_batches: int, batch_size: int):
+        self.sampler = sampler
+        self.skip = skip_batches * batch_size
+
+    def __iter__(self):
+        indices = iter(self.sampler)
+        for _ in range(self.skip):
+            next(indices, None)
+        return indices
+
+    def __len__(self) -> int:
+        return max(0, len(self.sampler) - self.skip)
 
 
 def setup_distributed() -> tuple[int, int, int]:
@@ -215,36 +232,40 @@ def main() -> None:
     print("[train] starting", flush=True)
     for epoch in range(start_epoch, max_epochs):
         drop_last = training_config["drop_last"] or world_size > 1
-        sampler = (
-            DistributedSampler(
+        skip_batches = resume_batch_index if epoch == start_epoch else 0
+        if world_size > 1:
+            sampler = DistributedSampler(
                 train_data,
                 shuffle=True,
                 drop_last=drop_last,
                 seed=config["seed"] + epoch,
             )
-            if world_size > 1
-            else None
-        )
-        if sampler is not None:
             sampler.set_epoch(epoch)
+        else:
+            sampler = RandomSampler(
+                train_data,
+                generator=torch.Generator().manual_seed(config["seed"] + epoch),
+            )
+        if skip_batches:
+            sampler = _SkipFirstBatches(sampler, skip_batches, batch_size)
+            if is_main:
+                print(f"[train] jumping to batch {skip_batches}", flush=True)
         loader = DataLoader(
             train_data,
             batch_size=batch_size,
-            shuffle=sampler is None,
+            shuffle=False,
             sampler=sampler,
             num_workers=training_config["num_workers"],
             drop_last=drop_last,
             pin_memory=device.type == "cuda",
-            generator=torch.Generator().manual_seed(config["seed"] + epoch),
         )
         trainee.train()
-        for batch_index, batch in enumerate(loader):
-            if epoch == start_epoch and batch_index < resume_batch_index:
-                continue
+        for local_index, batch in enumerate(loader):
+            batch_index = local_index + skip_batches
             pending_batches.append((batch_index, batch))
             if (
                 len(pending_batches) < accumulation_steps
-                and batch_index != len(loader) - 1
+                and local_index != len(loader) - 1
             ):
                 continue
 
