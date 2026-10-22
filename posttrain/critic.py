@@ -98,7 +98,7 @@ def critic_loss(
 def _gaussian_nll(mu: Tensor, log_var: Tensor, target: Tensor) -> Tensor:
     mask = torch.isfinite(target)
     if not mask.any():
-        return mu.sum() * 0
+        return mu.new_zeros(())
     mu = mu[mask]
     log_var = log_var[mask].clamp(-8, 8)
     nll = 0.5 * (log_var + (target[mask] - mu).square() * (-log_var).exp())
@@ -108,5 +108,5 @@ def _gaussian_nll(mu: Tensor, log_var: Tensor, target: Tensor) -> Tensor:
 def _binary_nll(logit: Tensor, target: Tensor) -> Tensor:
     mask = target != -1
     if not mask.any():
-        return logit.sum() * 0
+        return logit.new_zeros(())
     return F.binary_cross_entropy_with_logits(logit[mask], target[mask].float())

@@ -41,6 +41,9 @@ class GPT2Block(nn.Module):
             key_padding_mask=key_padding,
             need_weights=False,
         )
+        # A pad query can attend only to other pads, and softmax of an all-masked
+        # row is NaN. That NaN is a key in the next layer and wipes the real tokens.
+        attended = attended.masked_fill(key_padding.unsqueeze(-1), 0)
         hidden = hidden + self.dropout(attended)
         return hidden + self.feed_forward(self.norm2(hidden))
 

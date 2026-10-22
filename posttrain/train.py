@@ -158,7 +158,7 @@ def main() -> None:
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
             step += 1
-            window += float(parts["loss"])
+            window += float(parts["loss"].detach())
             seen += 1
             if step == 1 or step % training["log_every_steps"] == 0:
                 mean = window / max(1, seen)
