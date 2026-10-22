@@ -50,7 +50,7 @@ training:
   weight_decay: 0.01
   max_grad_norm: 1.0
   num_workers: 2
-  log_every_steps: 50
+  log_every_steps: 1
   eval_every_steps: 500
   checkpoint_every_steps: 500
   eval_rows: 20000
