@@ -26,13 +26,16 @@ def _batch(table: pa.Table, context_length: int) -> tuple[torch.Tensor, ...]:
     rows = table.num_rows
     context = np.asarray(table.column("context").combine_chunks().values.to_numpy()).reshape(rows, context_length)
     mask = np.asarray(table.column("attention_mask").combine_chunks().values.to_numpy()).reshape(rows, context_length)
+    def tensor(array, dtype):
+        return torch.tensor(np.array(array, copy=True), dtype=dtype)
+
     return (
-        torch.from_numpy(context).long(),
-        torch.from_numpy(mask).long(),
-        torch.from_numpy(np.asarray(table.column("item").to_numpy(zero_copy_only=False))).long(),
-        torch.from_numpy(np.asarray(table.column("y_eng").to_numpy(zero_copy_only=False), dtype=np.float32)),
-        torch.from_numpy(np.asarray(table.column("y_like").to_numpy(zero_copy_only=False))).long(),
-        torch.from_numpy(np.asarray(table.column("y_dislike").to_numpy(zero_copy_only=False))).long(),
+        tensor(context, torch.long),
+        tensor(mask, torch.long),
+        tensor(table.column("item").to_numpy(zero_copy_only=False), torch.long),
+        tensor(np.asarray(table.column("y_eng").to_numpy(zero_copy_only=False), dtype=np.float32), torch.float32),
+        tensor(table.column("y_like").to_numpy(zero_copy_only=False), torch.long),
+        tensor(table.column("y_dislike").to_numpy(zero_copy_only=False), torch.long),
     )
 
 
