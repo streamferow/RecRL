@@ -97,10 +97,12 @@ class GPT2NextItem(nn.Module):
                 nn.init.zeros_(module.in_proj_bias)
 
 
-    def encode(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+    def encode(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, extra: torch.Tensor | None = None) -> torch.Tensor:
         length = input_ids.shape[1]
         positions = torch.arange(length, device=input_ids.device)[None, :]
         hidden = self.dropout(self.item_embedding(input_ids) + self.position_embedding(positions))
+        if extra is not None:
+            hidden = hidden + extra
         for block in self.blocks:
             hidden = block(hidden, attention_mask)
         return self.final_norm(hidden)

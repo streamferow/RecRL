@@ -37,3 +37,23 @@ policy:
   init_from: /kaggle/working/RecRL/model/gpt2-1024
   reference_from: /kaggle/working/RecRL/model/gpt2-1024
   trainable_last_blocks: 2
+
+training:
+  dataset_dir: /kaggle/input/datasets/ivanpanferov/recrl-yambda-critic
+  encoder_from: /kaggle/working/RecRL/model/gpt2-1024
+  output_dir: /kaggle/working/RecRL/model/critic
+  checkpoint_dir: /kaggle/working/RecRL/checkpoints-critic
+  resume_from: null
+  epochs: 1
+  batch_size: 256
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  num_workers: 2
+  log_every_steps: 50
+  eval_every_steps: 500
+  checkpoint_every_steps: 500
+  eval_rows: 20000
+  metrics_file: /kaggle/working/RecRL/eval/critic-metrics.jsonl
+  training_loss_file: /kaggle/working/RecRL/eval/critic-loss.jsonl
+  plots_dir: /kaggle/working/RecRL/eval/plots
