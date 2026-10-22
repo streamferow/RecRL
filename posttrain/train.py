@@ -2,10 +2,12 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 import yaml
-from torch.utils.data import DataLoader, RandomSampler, Subset, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -17,41 +19,52 @@ from posttrain.critic import Critic, critic_loss
 from posttrain.eval import keep_history, plot_critic, record_eval, restore_history
 
 
-class _SkipFirstBatches(torch.utils.data.Sampler[int]):
-    def __init__(self, sampler, skip_batches: int, batch_size: int):
-        self.sampler = sampler
-        self.skip = skip_batches * batch_size
-
-    def __iter__(self):
-        indices = iter(self.sampler)
-        for _ in range(self.skip):
-            next(indices, None)
-        return indices
-
-    def __len__(self) -> int:
-        return max(0, len(self.sampler) - self.skip)
+COLUMNS = ["context", "attention_mask", "item", "y_eng", "y_like", "y_dislike"]
 
 
-def _column(table, name: str, context_length: int | None = None) -> torch.Tensor:
-    values = table.column(name).combine_chunks()
-    if context_length is None:
-        array = values.to_numpy(zero_copy_only=False)
-        dtype = torch.float32 if name == "y_eng" else torch.long
-        return torch.tensor(array, dtype=dtype)
-    flat = values.values.to_numpy(zero_copy_only=False)
-    return torch.tensor(flat.reshape(-1, context_length), dtype=torch.long)
-
-
-def load_split(path: Path, context_length: int) -> TensorDataset:
-    table = pq.read_table(path, columns=["context", "attention_mask", "item", "y_eng", "y_like", "y_dislike"])
-    return TensorDataset(
-        _column(table, "context", context_length),
-        _column(table, "attention_mask", context_length),
-        _column(table, "item"),
-        _column(table, "y_eng"),
-        _column(table, "y_like"),
-        _column(table, "y_dislike"),
+def _batch(table: pa.Table, context_length: int) -> tuple[torch.Tensor, ...]:
+    rows = table.num_rows
+    context = np.asarray(table.column("context").combine_chunks().values.to_numpy()).reshape(rows, context_length)
+    mask = np.asarray(table.column("attention_mask").combine_chunks().values.to_numpy()).reshape(rows, context_length)
+    return (
+        torch.from_numpy(context).long(),
+        torch.from_numpy(mask).long(),
+        torch.from_numpy(np.asarray(table.column("item").to_numpy(zero_copy_only=False))).long(),
+        torch.from_numpy(np.asarray(table.column("y_eng").to_numpy(zero_copy_only=False), dtype=np.float32)),
+        torch.from_numpy(np.asarray(table.column("y_like").to_numpy(zero_copy_only=False))).long(),
+        torch.from_numpy(np.asarray(table.column("y_dislike").to_numpy(zero_copy_only=False))).long(),
     )
+
+
+def iter_train(path: Path, context_length: int, batch_size: int, skip_rows: int, seed: int):
+    """One pass over the parquet. Only one decoded chunk is in memory."""
+    parquet = pq.ParquetFile(path)
+    rng = np.random.default_rng(seed)
+    left = skip_rows
+    for record in parquet.iter_batches(batch_size=65536, columns=COLUMNS):
+        table = pa.Table.from_batches([record])
+        if left:
+            drop = min(left, table.num_rows)
+            left -= drop
+            if drop == table.num_rows:
+                continue
+            table = table.slice(drop)
+        table = table.take(rng.permutation(table.num_rows))
+        for start in range(0, table.num_rows - batch_size + 1, batch_size):
+            yield _batch(table.slice(start, batch_size), context_length)
+
+
+def load_eval(path: Path, context_length: int, eval_rows: int) -> TensorDataset:
+    parquet = pq.ParquetFile(path)
+    parts = []
+    got = 0
+    for group in range(parquet.num_row_groups):
+        table = parquet.read_row_group(group, columns=COLUMNS)
+        parts.append(table.slice(0, eval_rows - got))
+        got += parts[-1].num_rows
+        if got >= eval_rows:
+            break
+    return TensorDataset(*_batch(pa.concat_tables(parts), context_length))
 
 
 def build_encoder(model_config: dict, metadata: dict, weights: Path, device: torch.device) -> GPT2NextItem:
@@ -91,12 +104,11 @@ def main() -> None:
     pretrain = yaml.safe_load((ROOT / "pretrain" / "train.yaml").read_text())["model"]
     context_length = int(metadata["context_length"])
 
-    print("[critic] loading rows", flush=True)
-    train_data = load_split(dataset_dir / "train.parquet", context_length)
-    validation = load_split(dataset_dir / "validation.parquet", context_length)
-    eval_rows = min(int(training["eval_rows"]), len(validation))
-    eval_data = Subset(validation, torch.randperm(len(validation), generator=torch.Generator().manual_seed(config["seed"]))[:eval_rows].tolist())
-    eval_loader = DataLoader(eval_data, batch_size=training["batch_size"])
+    train_path = dataset_dir / "train.parquet"
+    train_rows = pq.ParquetFile(train_path).metadata.num_rows
+    eval_rows = min(int(training["eval_rows"]), pq.ParquetFile(dataset_dir / "validation.parquet").metadata.num_rows)
+    print(f"[critic] train_rows={train_rows:,} eval_rows={eval_rows:,}", flush=True)
+    eval_loader = DataLoader(load_eval(dataset_dir / "validation.parquet", context_length, eval_rows), batch_size=training["batch_size"])
 
     encoder = build_encoder(pretrain, metadata, Path(training["encoder_from"]), device)
     model = Critic(encoder, dropout=pretrain["dropout"]).to(device)
@@ -125,18 +137,16 @@ def main() -> None:
         print(f"[critic] resumed step={step} next_batch={resume_batch_index}", flush=True)
 
     batch_size = int(training["batch_size"])
-    print(f"[critic] train_rows={len(train_data):,} eval_rows={eval_rows:,} device={device}", flush=True)
+    print(f"[critic] device={device}", flush=True)
     for epoch in range(start_epoch, int(training["epochs"])):
         skip = resume_batch_index if epoch == start_epoch else 0
-        sampler = RandomSampler(train_data, generator=torch.Generator().manual_seed(config["seed"] + epoch))
         if skip:
-            sampler = _SkipFirstBatches(sampler, skip, batch_size)
             print(f"[critic] jumping to batch {skip}", flush=True)
-        loader = DataLoader(train_data, batch_size=batch_size, sampler=sampler, num_workers=training["num_workers"], drop_last=True)
         model.train()
         window = 0.0
         seen = 0
-        for local_index, batch in enumerate(loader):
+        batches = iter_train(train_path, context_length, batch_size, skip * batch_size, config["seed"] + epoch)
+        for local_index, batch in enumerate(batches):
             batch_index = local_index + skip
             context, mask, item, y_eng, y_like, y_dislike = (value.to(device) for value in batch)
             parts = critic_loss(model(context, mask, item), y_eng, y_like, y_dislike)
