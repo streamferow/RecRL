@@ -40,7 +40,7 @@ policy:
 
 training:
   dataset_dir: /kaggle/input/datasets/ivanpanferov/recrl-yambda-critic
-  encoder_from: /kaggle/working/RecRL/model/gpt2-1024
+  encoder_from: /kaggle/input/datasets/ivanpanferov/recrl-gpt2-1024
   output_dir: /kaggle/working/RecRL/model/critic
   checkpoint_dir: /kaggle/working/RecRL/checkpoints-critic
   resume_from: null
